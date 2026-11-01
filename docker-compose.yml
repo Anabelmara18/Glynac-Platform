@@ -1,0 +1,38 @@
+services:
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: medallion-minio
+    command: server /data --console-address ":9001"
+    user: "0:0"   # avoids "file access denied" on the data volume
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio_data:/data
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3
+    container_name: medallion-clickhouse
+    environment:
+      CLICKHOUSE_DB: medallion
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8123:8123"   # HTTP
+      - "9100:9000"   # native protocol (9000 is taken by MinIO)
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    depends_on:
+      - minio
+
+volumes:
+  minio_data:
+  clickhouse_data:
