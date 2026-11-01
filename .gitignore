@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+generator/out/
+.venv/
+.env
+clickhouse
+generator/out/
+.venv/
