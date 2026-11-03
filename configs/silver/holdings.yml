@@ -1,0 +1,31 @@
+table: holdings
+bronze_table: holdings
+grain: snapshot
+business_key:
+- holding_id
+version_column: updated_at
+columns:
+- name: holding_id
+  type: String
+  expr: trim(b.holding_id)
+- name: portfolio_id
+  type: String
+  expr: trim(b.portfolio_id)
+- name: security_id
+  type: String
+  expr: trim(b.security_id)
+- name: quantity
+  type: Decimal(18, 4)
+  expr: b.quantity
+- name: cost_basis
+  type: Decimal(18, 2)
+  expr: b.cost_basis
+- name: market_value
+  type: Decimal(18, 2)
+  expr: b.market_value
+- name: as_of_date
+  type: Date32
+  expr: b.as_of_date
+- name: updated_at
+  type: DateTime64(6)
+  expr: b.updated_at

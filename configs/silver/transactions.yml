@@ -1,0 +1,33 @@
+table: transactions
+bronze_table: transactions
+grain: event
+business_key:
+- transaction_id
+columns:
+- name: transaction_id
+  type: String
+  expr: trim(b.transaction_id)
+- name: account_id
+  type: String
+  expr: trim(b.account_id)
+- name: transaction_type
+  type: String
+  expr: lower(trim(b.transaction_type))
+- name: amount
+  type: Decimal(18, 2)
+  expr: b.amount
+- name: currency
+  type: String
+  expr: upper(trim(b.currency))
+- name: trade_date
+  type: Date32
+  expr: b.trade_date
+- name: settle_date
+  type: Date32
+  expr: b.settle_date
+- name: description
+  type: String
+  expr: trim(b.description)
+- name: created_at
+  type: DateTime64(6)
+  expr: b.created_at

@@ -1,0 +1,28 @@
+table: trades
+source: blackdiamond
+path_glob: blackdiamond/trades/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: trade_id
+  type: String
+- name: portfolio_id
+  type: String
+- name: security_id
+  type: String
+- name: side
+  type: String
+- name: quantity
+  type: Decimal(18, 4)
+- name: price
+  type: Decimal(18, 2)
+- name: executed_at
+  type: DateTime64(6)
+- name: status
+  type: String

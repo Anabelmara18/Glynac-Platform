@@ -1,0 +1,26 @@
+table: fee_schedules
+source: reference_data
+path_glob: reference_data/fee_schedules/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: fee_schedule_id
+  type: String
+- name: account_id
+  type: String
+- name: fee_type
+  type: String
+- name: rate_bps
+  type: Int32
+- name: billing_frequency
+  type: String
+- name: effective_from
+  type: Date32
+- name: updated_at
+  type: DateTime64(6)

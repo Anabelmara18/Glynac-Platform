@@ -4,5 +4,8 @@ generator/out/
 .venv/
 .env
 clickhouse
-generator/out/
-.venv/
+.chdata/
+sql/
+.chdata.lock
+.venv-airflow/
+.pytest_cache/

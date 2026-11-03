@@ -1,0 +1,28 @@
+table: securities
+source: reference_data
+path_glob: reference_data/securities/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: security_id
+  type: String
+- name: ticker
+  type: String
+- name: name
+  type: String
+- name: asset_class
+  type: String
+- name: currency
+  type: String
+- name: exchange
+  type: String
+- name: last_price
+  type: Decimal(18, 2)
+- name: updated_at
+  type: DateTime64(6)

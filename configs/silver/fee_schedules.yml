@@ -1,0 +1,34 @@
+table: fee_schedules
+bronze_table: fee_schedules
+grain: snapshot
+business_key:
+- fee_schedule_id
+version_column: updated_at
+history:
+  enabled: true
+  tracked:
+  - fee_type
+  - rate_bps
+  - billing_frequency
+columns:
+- name: fee_schedule_id
+  type: String
+  expr: trim(b.fee_schedule_id)
+- name: account_id
+  type: String
+  expr: trim(b.account_id)
+- name: fee_type
+  type: String
+  expr: lower(trim(b.fee_type))
+- name: rate_bps
+  type: Int32
+  expr: b.rate_bps
+- name: billing_frequency
+  type: String
+  expr: lower(trim(b.billing_frequency))
+- name: effective_from
+  type: Date32
+  expr: b.effective_from
+- name: updated_at
+  type: DateTime64(6)
+  expr: b.updated_at

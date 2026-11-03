@@ -1,0 +1,28 @@
+table: advisors
+source: salesforce
+path_glob: salesforce/advisors/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: advisor_id
+  type: String
+- name: first_name
+  type: String
+- name: last_name
+  type: String
+- name: email
+  type: String
+- name: region
+  type: String
+- name: hire_date
+  type: Date32
+- name: status
+  type: String
+- name: updated_at
+  type: DateTime64(6)

@@ -1,0 +1,6 @@
+# Shared schedule settings for every generated DAG.
+schedule: "@daily"
+start_date: "2026-10-26"     # first processing_date in the generated data
+end_date: "2026-11-01"       # last processing_date (7 daily runs)
+retries: 2
+retry_delay_minutes: 5

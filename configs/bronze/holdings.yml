@@ -1,0 +1,28 @@
+table: holdings
+source: blackdiamond
+path_glob: blackdiamond/holdings/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: holding_id
+  type: String
+- name: portfolio_id
+  type: String
+- name: security_id
+  type: String
+- name: quantity
+  type: Decimal(18, 4)
+- name: cost_basis
+  type: Decimal(18, 2)
+- name: market_value
+  type: Decimal(18, 2)
+- name: as_of_date
+  type: Date32
+- name: updated_at
+  type: DateTime64(6)

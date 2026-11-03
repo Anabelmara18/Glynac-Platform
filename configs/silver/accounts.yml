@@ -1,0 +1,37 @@
+table: accounts
+bronze_table: accounts
+grain: snapshot
+business_key:
+- account_id
+version_column: updated_at
+history:
+  enabled: true
+  tracked:
+  - status
+  - advisor_id
+  - account_type
+columns:
+- name: account_id
+  type: String
+  expr: trim(b.account_id)
+- name: contact_id
+  type: String
+  expr: trim(b.contact_id)
+- name: advisor_id
+  type: String
+  expr: trim(b.advisor_id)
+- name: account_type
+  type: String
+  expr: trim(b.account_type)
+- name: status
+  type: String
+  expr: lower(trim(b.status))
+- name: base_currency
+  type: String
+  expr: upper(trim(b.base_currency))
+- name: opened_date
+  type: Date32
+  expr: b.opened_date
+- name: updated_at
+  type: DateTime64(6)
+  expr: b.updated_at

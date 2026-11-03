@@ -1,0 +1,30 @@
+table: trades
+bronze_table: trades
+grain: event
+business_key:
+- trade_id
+columns:
+- name: trade_id
+  type: String
+  expr: trim(b.trade_id)
+- name: portfolio_id
+  type: String
+  expr: trim(b.portfolio_id)
+- name: security_id
+  type: String
+  expr: trim(b.security_id)
+- name: side
+  type: String
+  expr: lower(trim(b.side))
+- name: quantity
+  type: Decimal(18, 4)
+  expr: b.quantity
+- name: price
+  type: Decimal(18, 2)
+  expr: b.price
+- name: executed_at
+  type: DateTime64(6)
+  expr: b.executed_at
+- name: status
+  type: String
+  expr: lower(trim(b.status))

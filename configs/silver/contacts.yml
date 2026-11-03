@@ -1,0 +1,41 @@
+table: contacts
+bronze_table: contacts
+grain: snapshot
+business_key:
+- contact_id
+version_column: updated_at
+history:
+  enabled: true
+  tracked:
+  - email
+  - phone
+  - city
+  - risk_profile
+columns:
+- name: contact_id
+  type: String
+  expr: trim(b.contact_id)
+- name: first_name
+  type: String
+  expr: trim(b.first_name)
+- name: last_name
+  type: String
+  expr: trim(b.last_name)
+- name: email
+  type: String
+  expr: lower(trim(b.email))
+- name: phone
+  type: String
+  expr: trim(b.phone)
+- name: city
+  type: String
+  expr: trim(b.city)
+- name: risk_profile
+  type: String
+  expr: trim(b.risk_profile)
+- name: created_at
+  type: DateTime64(6)
+  expr: b.created_at
+- name: updated_at
+  type: DateTime64(6)
+  expr: b.updated_at

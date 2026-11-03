@@ -1,0 +1,28 @@
+table: portfolios
+bronze_table: portfolios
+grain: snapshot
+business_key:
+- portfolio_id
+version_column: updated_at
+columns:
+- name: portfolio_id
+  type: String
+  expr: trim(b.portfolio_id)
+- name: account_id
+  type: String
+  expr: trim(b.account_id)
+- name: name
+  type: String
+  expr: trim(b.name)
+- name: strategy
+  type: String
+  expr: trim(b.strategy)
+- name: benchmark
+  type: String
+  expr: trim(b.benchmark)
+- name: inception_date
+  type: Date32
+  expr: b.inception_date
+- name: updated_at
+  type: DateTime64(6)
+  expr: b.updated_at

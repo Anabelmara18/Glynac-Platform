@@ -1,0 +1,26 @@
+table: portfolios
+source: blackdiamond
+path_glob: blackdiamond/portfolios/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: portfolio_id
+  type: String
+- name: account_id
+  type: String
+- name: name
+  type: String
+- name: strategy
+  type: String
+- name: benchmark
+  type: String
+- name: inception_date
+  type: Date32
+- name: updated_at
+  type: DateTime64(6)

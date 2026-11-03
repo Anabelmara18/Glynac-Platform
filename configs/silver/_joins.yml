@@ -1,0 +1,24 @@
+# Parent-child joins. Every ON clause MUST compare organisation_id; the builder
+# refuses to render a join that does not (tenant-safety guard).
+- name: holding_detail
+  base: {table: holdings_current, alias: h}
+  joins:
+    - {table: portfolios_current, alias: p, condition: "p.organisation_id = h.organisation_id AND p.portfolio_id = h.portfolio_id"}
+    - {table: accounts_current,   alias: a, condition: "a.organisation_id = p.organisation_id AND a.account_id = p.account_id"}
+    - {table: contacts_current,   alias: c, condition: "c.organisation_id = a.organisation_id AND c.contact_id = a.contact_id"}
+    - {table: securities_current, alias: s, condition: "s.organisation_id = h.organisation_id AND s.security_id = h.security_id"}
+  columns:
+    - h.organisation_id AS organisation_id
+    - h.holding_id AS holding_id
+    - h.quantity AS quantity
+    - h.market_value AS market_value
+    - p.portfolio_id AS portfolio_id
+    - p.name AS portfolio_name
+    - p.strategy AS strategy
+    - a.account_id AS account_id
+    - a.account_type AS account_type
+    - a.status AS account_status
+    - c.contact_id AS contact_id
+    - concat(c.first_name, ' ', c.last_name) AS client_name
+    - s.ticker AS ticker
+    - s.asset_class AS asset_class

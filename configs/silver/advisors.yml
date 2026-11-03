@@ -1,0 +1,31 @@
+table: advisors
+bronze_table: advisors
+grain: snapshot
+business_key:
+- advisor_id
+version_column: updated_at
+columns:
+- name: advisor_id
+  type: String
+  expr: trim(b.advisor_id)
+- name: first_name
+  type: String
+  expr: trim(b.first_name)
+- name: last_name
+  type: String
+  expr: trim(b.last_name)
+- name: email
+  type: String
+  expr: lower(trim(b.email))
+- name: region
+  type: String
+  expr: trim(b.region)
+- name: hire_date
+  type: Date32
+  expr: b.hire_date
+- name: status
+  type: String
+  expr: lower(trim(b.status))
+- name: updated_at
+  type: DateTime64(6)
+  expr: b.updated_at

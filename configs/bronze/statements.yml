@@ -1,0 +1,26 @@
+table: statements
+source: blackdiamond
+path_glob: blackdiamond/statements/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: statement_id
+  type: String
+- name: account_id
+  type: String
+- name: period_start
+  type: Date32
+- name: period_end
+  type: Date32
+- name: opening_balance
+  type: Decimal(18, 2)
+- name: closing_balance
+  type: Decimal(18, 2)
+- name: generated_at
+  type: DateTime64(6)

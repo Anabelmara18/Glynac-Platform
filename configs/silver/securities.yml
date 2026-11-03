@@ -1,0 +1,31 @@
+table: securities
+bronze_table: securities
+grain: snapshot
+business_key:
+- security_id
+version_column: updated_at
+columns:
+- name: security_id
+  type: String
+  expr: trim(b.security_id)
+- name: ticker
+  type: String
+  expr: upper(trim(b.ticker))
+- name: name
+  type: String
+  expr: trim(b.name)
+- name: asset_class
+  type: String
+  expr: trim(b.asset_class)
+- name: currency
+  type: String
+  expr: upper(trim(b.currency))
+- name: exchange
+  type: String
+  expr: trim(b.exchange)
+- name: last_price
+  type: Decimal(18, 2)
+  expr: b.last_price
+- name: updated_at
+  type: DateTime64(6)
+  expr: b.updated_at

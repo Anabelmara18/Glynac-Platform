@@ -1,0 +1,30 @@
+table: transactions
+source: blackdiamond
+path_glob: blackdiamond/transactions/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: transaction_id
+  type: String
+- name: account_id
+  type: String
+- name: transaction_type
+  type: String
+- name: amount
+  type: Decimal(18, 2)
+- name: currency
+  type: String
+- name: trade_date
+  type: Date32
+- name: settle_date
+  type: Date32
+- name: description
+  type: String
+- name: created_at
+  type: DateTime64(6)

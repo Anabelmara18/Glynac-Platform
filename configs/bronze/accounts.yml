@@ -1,0 +1,28 @@
+table: accounts
+source: salesforce
+path_glob: salesforce/accounts/*/*/data.orc
+format: ORC
+partitions:
+- name: organisation_id
+  type: String
+  path_segment_from_end: 3
+- name: processing_date
+  type: Date
+  path_segment_from_end: 2
+columns:
+- name: account_id
+  type: String
+- name: contact_id
+  type: String
+- name: advisor_id
+  type: String
+- name: account_type
+  type: String
+- name: status
+  type: String
+- name: base_currency
+  type: String
+- name: opened_date
+  type: Date32
+- name: updated_at
+  type: DateTime64(6)

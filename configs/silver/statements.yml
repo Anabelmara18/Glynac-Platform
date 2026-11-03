@@ -1,0 +1,28 @@
+table: statements
+bronze_table: statements
+grain: snapshot
+business_key:
+- statement_id
+version_column: generated_at
+columns:
+- name: statement_id
+  type: String
+  expr: trim(b.statement_id)
+- name: account_id
+  type: String
+  expr: trim(b.account_id)
+- name: period_start
+  type: Date32
+  expr: b.period_start
+- name: period_end
+  type: Date32
+  expr: b.period_end
+- name: opening_balance
+  type: Decimal(18, 2)
+  expr: b.opening_balance
+- name: closing_balance
+  type: Decimal(18, 2)
+  expr: b.closing_balance
+- name: generated_at
+  type: DateTime64(6)
+  expr: b.generated_at

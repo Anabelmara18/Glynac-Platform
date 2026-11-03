@@ -216,7 +216,7 @@ def evolve(st, day_i, day, rng, fake):
                 a["status"] = "active"
                 changes.append(("accounts", a["account_id"], "restricted -> active"))
             else:
-                a["advisor_id"] = rng.choice(advs)
+                a["advisor_id"] = rng.choice([x for x in advs if x != a["advisor_id"]])  # always a real change
                 changes.append(("accounts", a["account_id"], "advisor reassigned"))
             a["updated_at"] = ts
     return changes
