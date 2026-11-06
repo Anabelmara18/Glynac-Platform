@@ -1,6 +1,13 @@
 # Medallion Data Platform (wealth-management)
 
-Config-driven Bronze → Silver → Gold pipeline on MinIO + ClickHouse + Airflow.
+Config-driven Bronze → Silver → Gold pipeline on ClickHouse + Airflow, multi-tenant by `organisation_id`.
+
+**How it was run:** on the standalone ClickHouse binary inside WSL (no Docker), because Docker image
+pulls failed on the author's network. `docker-compose.yml` is provided for environments where Docker works
+and is untested here. Everything is selected by environment (`CLICKHOUSE_URL`, `CLICKHOUSE_BIN`), not code.
+
+Order: generate data -> `bronze/build_bronze.py` -> `silver/build_silver.py` -> `gold/build_gold.py`,
+then the three `verify_*.py` scripts (each prints `... OK`). Details in the sections below.
 
 ## Quick start
 
@@ -127,6 +134,34 @@ export CLICKHOUSE_URL=http://localhost:8123    # terminal B: every script now us
 # browse the data at http://localhost:8123/play
 ```
 
+## Schema helper CLI
+
+Reads an ORC file's schema and drafts a Bronze YAML (needs only the file).
+
+```bash
+# one file (source/table inferred from the landing path)
+python cli/schema_helper.py generator/out/bronze/salesforce/accounts/org_8812/2026-10-26/data.orc
+
+# whole landing zone: scans EVERY file, fails on schema drift
+python cli/schema_helper.py --all generator/out/bronze --out-dir configs/bronze
+
+# does it reproduce the committed configs? (exit 1 if not)
+python cli/schema_helper.py --all generator/out/bronze --out-dir configs/bronze --check
+```
+
+It refuses files that already contain `organisation_id`/`processing_date` (the path-derived
+partition columns would shadow them), files of one table whose schemas disagree, and column
+types with no ClickHouse mapping (it names the column). ORC timestamps are nanosecond
+precision; Bronze uses `DateTime64(6)` unless `--timestamp-precision` says otherwise.
+`tests/test_schema_helper.py` proves the CLI reproduces all 10 hand-written configs.
+
+## Tests
+
+```bash
+pytest tests -q   # in .venv: Gold guard + schema helper; in .venv-airflow: Gold guard + DAG factory
+```
+Tests whose dependency is missing (Airflow, pyarrow) skip themselves, so the command works in both.
+
 ## Roadmap
 
 - [x] Step 1: schemas, generator, MinIO + ClickHouse
@@ -134,4 +169,4 @@ export CLICKHOUSE_URL=http://localhost:8123    # terminal B: every script now us
 - [x] Step 3: Silver YAML configs + dedup + history
 - [x] Step 4: Airflow DAG factory (one DAG per YAML)
 - [x] Step 5: Gold layer + tenant guard + tests
-- [ ] Step 6: Schema helper CLI
+- [x] Step 6: Schema helper CLI

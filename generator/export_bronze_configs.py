@@ -6,28 +6,16 @@ These are the hand-seeded Bronze configs. Later, the schema helper CLI
 """
 from pathlib import Path
 
-import pyarrow as pa
+import sys
+
 import yaml
 
 from schemas import TABLES
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "cli"))
+from schema_helper import ch_type  # noqa: E402  (single source of truth for type mapping)
+
 OUT = Path(__file__).resolve().parent.parent / "configs" / "bronze"
-
-
-def ch_type(t: pa.DataType) -> str:
-    if pa.types.is_string(t):
-        return "String"
-    if pa.types.is_date32(t):
-        return "Date32"
-    if pa.types.is_timestamp(t):
-        return "DateTime64(6)"
-    if pa.types.is_decimal(t):
-        return f"Decimal({t.precision}, {t.scale})"
-    if pa.types.is_int32(t):
-        return "Int32"
-    if pa.types.is_int64(t):
-        return "Int64"
-    raise ValueError(f"unmapped type {t}")
 
 
 def main():

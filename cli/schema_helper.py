@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""Schema helper: read an ORC file's schema and draft a Bronze YAML config.
+
+It needs only the ORC file (no schemas.py, no database). Source and table are
+read from the landing path
+    .../<source>/<table>/<organisation_id>/<processing_date>/data.orc
+or given with --source / --table.
+
+Single file:
+  python cli/schema_helper.py generator/out/bronze/salesforce/accounts/org_8812/2026-10-26/data.orc
+  python cli/schema_helper.py <file> --out configs/bronze/accounts.yml
+
+Whole landing zone (one config per table, scans EVERY file and fails on schema drift):
+  python cli/schema_helper.py --all generator/out/bronze --out-dir configs/bronze
+
+Drift check against the configs you already committed (exit 1 on any difference):
+  python cli/schema_helper.py --all generator/out/bronze --out-dir configs/bronze --check
+
+Guards:
+  * a file that already contains organisation_id / processing_date is refused,
+    because the path-derived partition columns would shadow the real ones
+  * files of one table with different schemas are refused (schema drift)
+  * a column type with no ClickHouse mapping is refused, naming the column
+
+ORC timestamps are nanosecond precision; Bronze uses DateTime64(6) by default
+(--timestamp-precision changes it).
+"""
+import argparse
+import re
+import sys
+from pathlib import Path
+
+import pyarrow as pa
+import pyarrow.orc as orc
+import yaml
+
+PARTITIONS = [
+    {"name": "organisation_id", "type": "String", "path_segment_from_end": 3},
+    {"name": "processing_date", "type": "Date", "path_segment_from_end": 2},
+]
+PARTITION_NAMES = {p["name"] for p in PARTITIONS}
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class SchemaError(Exception):
+    pass
+
+
+def ch_type(t, ts_precision=6, column="?"):
+    """Map an Arrow type to a ClickHouse type, or raise naming the column."""
+    if pa.types.is_string(t) or pa.types.is_large_string(t):
+        return "String"
+    if pa.types.is_date32(t) or pa.types.is_date64(t):
+        return "Date32"
+    if pa.types.is_timestamp(t):
+        return f"DateTime64({ts_precision})"
+    if pa.types.is_decimal(t):
+        return f"Decimal({t.precision}, {t.scale})"
+    if pa.types.is_boolean(t):
+        return "Bool"
+    for bits in (8, 16, 32, 64):
+        if t == getattr(pa, f"int{bits}")():
+            return f"Int{bits}"
+        if t == getattr(pa, f"uint{bits}")():
+            return f"UInt{bits}"
+    if t == pa.float32():
+        return "Float32"
+    if t == pa.float64():
+        return "Float64"
+    raise SchemaError(f"column '{column}': no ClickHouse mapping for ORC type {t}")
+
+
+def read_schema(path):
+    return orc.ORCFile(str(path)).schema
+
+
+def columns_of(schema, ts_precision=6):
+    cols = [{"name": n, "type": ch_type(t, ts_precision, n)} for n, t in zip(schema.names, schema.types)]
+    clash = sorted(PARTITION_NAMES & {c["name"] for c in cols})
+    if clash:
+        raise SchemaError(f"file already contains {clash}; the path-derived partition column "
+                          f"would shadow it. Rename the column in the source or drop it.")
+    return cols
+
+
+def infer_from_path(path):
+    """.../<source>/<table>/<org>/<date>/data.orc -> (source, table) or None"""
+    parts = Path(path).resolve().parts
+    if len(parts) >= 5 and DATE_RE.match(parts[-2]):
+        return parts[-5], parts[-4]
+    return None
+
+
+def draft(path, source=None, table=None, ts_precision=6):
+    if not (source and table):
+        inferred = infer_from_path(path)
+        if not inferred:
+            raise SchemaError(f"cannot infer source/table from '{path}' - pass --source and --table")
+        source, table = source or inferred[0], table or inferred[1]
+    return {
+        "table": table,
+        "source": source,
+        "path_glob": f"{source}/{table}/*/*/data.orc",
+        "format": "ORC",
+        "partitions": [dict(p) for p in PARTITIONS],
+        "columns": columns_of(read_schema(path), ts_precision),
+    }
+
+
+def draft_table_dir(table_dir, ts_precision=6):
+    """Draft one table from EVERY file under <source>/<table>/; all schemas must agree."""
+    files = sorted(Path(table_dir).glob("*/*/data.orc"))
+    if not files:
+        raise SchemaError(f"no data.orc files under {table_dir}")
+    first = draft(files[0], ts_precision=ts_precision)
+    for f in files[1:]:
+        cols = columns_of(read_schema(f), ts_precision)
+        if cols != first["columns"]:
+            a, b = {c["name"]: c["type"] for c in first["columns"]}, {c["name"]: c["type"] for c in cols}
+            diff = sorted(set(a) ^ set(b)) + sorted(k for k in set(a) & set(b) if a[k] != b[k])
+            raise SchemaError(f"schema drift in {first['source']}/{first['table']}: "
+                              f"{f.relative_to(table_dir)} differs from {files[0].relative_to(table_dir)} "
+                              f"on {diff}")
+    first["_files_scanned"] = len(files)
+    return first
+
+
+def dump(cfg, origin):
+    body = {k: v for k, v in cfg.items() if not k.startswith("_")}
+    return (f"# DRAFT generated by cli/schema_helper.py from {origin}\n"
+            f"# Review types and partitions before committing.\n"
+            + yaml.safe_dump(body, sort_keys=False))
+
+
+def _strip(cfg):
+    return {k: v for k, v in cfg.items() if not k.startswith("_")}
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("file", nargs="?", help="one ORC file")
+    ap.add_argument("--all", metavar="LANDING_ROOT", help="landing root containing <source>/<table>/...")
+    ap.add_argument("--source")
+    ap.add_argument("--table")
+    ap.add_argument("--out", help="write the single-file draft here (default: print)")
+    ap.add_argument("--out-dir", help="with --all: directory for <table>.yml files")
+    ap.add_argument("--check", action="store_true", help="with --all: compare with --out-dir, exit 1 on difference")
+    ap.add_argument("--timestamp-precision", type=int, default=6)
+    a = ap.parse_args(argv)
+    try:
+        if a.all:
+            return run_all(a)
+        if not a.file:
+            ap.error("give an ORC file or --all LANDING_ROOT")
+        text = dump(draft(a.file, a.source, a.table, a.timestamp_precision), a.file)
+        if a.out:
+            Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(a.out).write_text(text)
+            print(f"wrote {a.out}")
+        else:
+            print(text, end="")
+        return 0
+    except SchemaError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+
+def run_all(a):
+    root = Path(a.all)
+    tables = sorted(d for src in root.iterdir() if src.is_dir() for d in src.iterdir() if d.is_dir())
+    if not tables:
+        raise SchemaError(f"no <source>/<table> folders under {root}")
+    if not a.out_dir:
+        raise SchemaError("--all needs --out-dir")
+    out_dir, diffs = Path(a.out_dir), 0
+    for td in tables:
+        cfg = draft_table_dir(td, a.timestamp_precision)
+        target = out_dir / f"{cfg['table']}.yml"
+        if a.check:
+            same = target.exists() and yaml.safe_load(target.read_text()) == _strip(cfg)
+            diffs += not same
+            print(f"  {'match' if same else 'DIFFERS':<8}{cfg['table']:<15}({cfg['_files_scanned']} files, {len(cfg['columns'])} columns)")
+        else:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            target.write_text(dump(cfg, f"{td} ({cfg['_files_scanned']} files)"))
+            print(f"  wrote {target}  ({cfg['_files_scanned']} files scanned, {len(cfg['columns'])} columns)")
+    if a.check:
+        print("\nALL MATCH" if not diffs else f"\n{diffs} CONFIG(S) DIFFER")
+        return 1 if diffs else 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

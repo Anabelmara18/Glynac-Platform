@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+pytest.importorskip("airflow")   # whole module is skipped where Airflow is not installed
+
 ROOT = Path(__file__).resolve().parent.parent
 FACTORY = ROOT / "dags" / "medallion_dag_factory.py"
 TABLES = ["accounts", "advisors", "contacts", "fee_schedules", "holdings",
