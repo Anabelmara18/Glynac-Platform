@@ -1,0 +1,62 @@
+name: advisor_book_daily
+description: Each advisor's book per organisation per day - distinct accounts, AUM and estimated annual fees.
+depends_on: [holdings, portfolios, accounts, fee_schedules]
+engine: AggregatingMergeTree
+engine_args: ""
+engine_rationale: >
+  A distinct count of accounts is NOT additive (the same account must not be
+  counted twice when rows merge), so it is stored as an aggregate STATE
+  (uniqExactState) and finalised with uniqExactMerge at read time. The other
+  measures use the same state mechanism so one view finalises them together.
+partition_by: toYYYYMMDD(processing_date)
+order_by: [organisation_id, processing_date, advisor_id]
+columns:
+  - {name: organisation_id, type: String}
+  - {name: processing_date, type: Date}
+  - {name: advisor_id, type: String}
+  - {name: accounts, type: "AggregateFunction(uniqExact, String)"}
+  - {name: aum, type: "AggregateFunction(sum, Decimal(38, 2))"}
+  - {name: est_annual_fees, type: "AggregateFunction(sum, Decimal(38, 4))"}
+# LEFT JOIN on fee_schedules: an account without a schedule keeps its AUM (fees = 0)
+# instead of silently disappearing from the advisor's book.
+select: |
+  SELECT
+    a.organisation_id AS organisation_id,
+    toDate('{day}') AS processing_date,
+    a.advisor_id AS advisor_id,
+    uniqExactState(a.account_id) AS accounts,
+    sumState(toDecimal128(h.market_value, 2)) AS aum,
+    sumState(toDecimal128(h.market_value, 4) * f.rate_bps / 10000) AS est_annual_fees
+  FROM (SELECT * FROM silver.holdings FINAL WHERE processing_date = toDate('{day}')) AS h
+  INNER JOIN (SELECT organisation_id, portfolio_id, account_id FROM silver.portfolios FINAL
+              WHERE processing_date = toDate('{day}')) AS p
+    ON p.organisation_id = h.organisation_id AND p.portfolio_id = h.portfolio_id
+  INNER JOIN (SELECT organisation_id, account_id, advisor_id FROM silver.accounts FINAL
+              WHERE processing_date = toDate('{day}')) AS a
+    ON a.organisation_id = p.organisation_id AND a.account_id = p.account_id
+  LEFT JOIN (SELECT organisation_id, account_id, rate_bps FROM silver.fee_schedules FINAL
+              WHERE processing_date = toDate('{day}')) AS f
+    ON f.organisation_id = a.organisation_id AND f.account_id = a.account_id
+  GROUP BY a.organisation_id, a.advisor_id
+# finalised read model (merge the states)
+view: |
+  SELECT organisation_id, processing_date, advisor_id,
+         uniqExactMerge(accounts) AS accounts,
+         sumMerge(aum) AS aum,
+         sumMerge(est_annual_fees) AS est_annual_fees
+  FROM gold.advisor_book_daily
+  GROUP BY organisation_id, processing_date, advisor_id
+# must return 0: per-org advisor AUM equals an independent recompute from Silver
+reconcile: |
+  SELECT count() AS mismatches FROM (
+    SELECT b.organisation_id AS o
+    FROM (SELECT organisation_id, sum(aum) AS aum FROM gold.advisor_book_daily_v
+          WHERE processing_date = toDate('{day}') GROUP BY organisation_id) AS b
+    INNER JOIN (SELECT hh.organisation_id AS organisation_id, sum(hh.market_value) AS silver_aum
+                FROM (SELECT * FROM silver.holdings FINAL WHERE processing_date = toDate('{day}')) AS hh
+                INNER JOIN (SELECT organisation_id, portfolio_id FROM silver.portfolios FINAL
+                            WHERE processing_date = toDate('{day}')) AS pp
+                  ON pp.organisation_id = hh.organisation_id AND pp.portfolio_id = hh.portfolio_id
+                GROUP BY hh.organisation_id) AS s
+      ON s.organisation_id = b.organisation_id
+    WHERE b.aum != s.silver_aum)

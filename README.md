@@ -105,11 +105,33 @@ When the loads finish, create the views once:
 ClickHouse calls are serialised with a file lock (the standalone binary allows one
 process per data folder). To use a real server instead set `CLICKHOUSE_URL=http://localhost:8123`.
 
+## Gold layer
+
+```bash
+python gold/build_gold.py --apply          # refuses to build if the tenant guard fails
+python gold/verify_gold.py                 # must print GOLD OK
+pytest tests -q                            # guard + DAG factory tests (no database needed)
+```
+
+Three aggregates, three engines (`configs/gold/*.yml`, each with an `engine_rationale`):
+`aum_daily` (ReplacingMergeTree), `transaction_volume_daily` (SummingMergeTree),
+`advisor_book_daily` (AggregatingMergeTree + `_v` view). Every one groups by
+`organisation_id`; `gold/guard.py` enforces it and the tests prove it fails if removed.
+Design notes: `docs/gold-design.md`. Airflow generates a `gold_<name>` DAG per YAML.
+
+## Running a ClickHouse server (no Docker)
+
+```bash
+./scripts/clickhouse_server.sh                 # terminal A, leave running
+export CLICKHOUSE_URL=http://localhost:8123    # terminal B: every script now uses the server
+# browse the data at http://localhost:8123/play
+```
+
 ## Roadmap
 
 - [x] Step 1: schemas, generator, MinIO + ClickHouse
 - [x] Step 2: Bronze tables in ClickHouse (partition columns from path)
 - [x] Step 3: Silver YAML configs + dedup + history
 - [x] Step 4: Airflow DAG factory (one DAG per YAML)
-- [ ] Step 5: Gold layer + guard tests
+- [x] Step 5: Gold layer + tenant guard + tests
 - [ ] Step 6: Schema helper CLI

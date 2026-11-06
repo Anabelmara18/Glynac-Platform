@@ -160,6 +160,10 @@ def build_org(org, idx, rng, fake, scale, start):
             account_id=f"ACC-{COLLISION_ID}", contact_id=f"CON-{COLLISION_ID}", advisor_id=adv_ids[0],
             account_type="Individual" if side == "A" else "Trust", status="active",
             base_currency="USD" if side == "A" else "CAD", opened_date=date(2020, 1, 15), updated_at=t0))
+        st["fee_schedules"].append(dict(
+            fee_schedule_id=f"FEE-{COLLISION_ID}", account_id=f"ACC-{COLLISION_ID}", fee_type="AUM",
+            rate_bps=75 if side == "A" else 100, billing_frequency="quarterly",
+            effective_from=date(2020, 1, 15), updated_at=t0))
         st["portfolios"].append(dict(
             portfolio_id=f"PF-{COLLISION_ID}", account_id=f"ACC-{COLLISION_ID}", name=f"Collision Portfolio {side}",
             strategy="Balanced" if side == "A" else "Aggressive Growth", benchmark="S&P 500",

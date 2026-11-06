@@ -1,0 +1,38 @@
+name: transaction_volume_daily
+description: Transaction count and amount per organisation, day and transaction type (ADDITIVE flows).
+depends_on: [transactions]
+engine: SummingMergeTree
+engine_args: "(txn_count, total_amount)"
+engine_rationale: >
+  Counts and amounts are additive: partial rows for the same key can simply be
+  summed on merge, and the table can be queried with plain sum(). The day's
+  partition is dropped before each reload, so a re-run cannot double-count.
+partition_by: toYYYYMMDD(processing_date)
+order_by: [organisation_id, processing_date, transaction_type]
+columns:
+  - {name: organisation_id, type: String}
+  - {name: processing_date, type: Date}
+  - {name: transaction_type, type: String}
+  - {name: txn_count, type: UInt64}
+  - {name: total_amount, type: "Decimal(38, 2)"}
+select: |
+  SELECT
+    t.organisation_id AS organisation_id,
+    toDate('{day}') AS processing_date,
+    t.transaction_type AS transaction_type,
+    count() AS txn_count,
+    sum(t.amount) AS total_amount
+  FROM silver.transactions AS t FINAL
+  WHERE t.processing_date = toDate('{day}')
+  GROUP BY t.organisation_id, t.transaction_type
+reconcile: |
+  SELECT count() AS mismatches FROM (
+    SELECT g.organisation_id AS o
+    FROM (SELECT organisation_id, sum(txn_count) AS n, sum(total_amount) AS amt
+          FROM gold.transaction_volume_daily WHERE processing_date = toDate('{day}')
+          GROUP BY organisation_id) AS g
+    FULL OUTER JOIN (SELECT organisation_id, count() AS n, sum(amount) AS amt
+                     FROM silver.transactions FINAL WHERE processing_date = toDate('{day}')
+                     GROUP BY organisation_id) AS s
+      ON s.organisation_id = g.organisation_id
+    WHERE g.n != s.n OR g.amt != s.amt)
